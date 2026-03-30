@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PianoGiri</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1 class="app-title">PianoGiri</h1>
+      <section class="piano-panel" aria-label="Computer keyboard piano">
+        <div class="top-bar">
+          <button id="sustainButton" class="sustain" type="button" aria-pressed="false">
+            <span class="small">sustain</span>
+            <span class="big">tab</span>
+          </button>
+
+          <div class="keybed" id="keybed" role="group" aria-label="Piano keyboard"></div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-item">Octave: <strong id="octaveLabel">C2</strong></div>
+          <div class="control-group" role="group" aria-label="Octave controls">
+            <button id="octaveDown" class="ctrl octave" type="button">
+              <span class="mark">-</span>
+              <span class="letter">Z</span>
+            </button>
+            <button id="octaveUp" class="ctrl octave" type="button">
+              <span class="mark">+</span>
+              <span class="letter">X</span>
+            </button>
+          </div>
+
+          <div class="status-item">Velocity: <strong id="velocityLabel">98</strong></div>
+          <div class="control-group" role="group" aria-label="Velocity controls">
+            <button id="velocityDown" class="ctrl velocity" type="button">
+              <span class="mark">-</span>
+              <span class="letter">C</span>
+            </button>
+            <button id="velocityUp" class="ctrl velocity" type="button">
+              <span class="mark">+</span>
+              <span class="letter">V</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="hint">Press A S D F G H J K L ; ' with black keys on W E T Y U O P. Use TAB for sustain.</p>
+      </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
