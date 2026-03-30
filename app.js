@@ -154,15 +154,23 @@ function ensureSessionTimers() {
 }
 
 async function initAdsense() {
-  const hasAdsConfig = appConfig.adsenseClient && appConfig.topAdSlot && appConfig.bottomAdSlot;
-  if (!hasAdsConfig) {
+  const hasClient = Boolean(appConfig.adsenseClient);
+  const hasTopSlot = Boolean(appConfig.topAdSlot);
+  const hasBottomSlot = Boolean(appConfig.bottomAdSlot);
+
+  if (!hasClient || (!hasTopSlot && !hasBottomSlot)) {
     return;
   }
 
-  topAd.setAttribute("data-ad-client", appConfig.adsenseClient);
-  topAd.setAttribute("data-ad-slot", appConfig.topAdSlot);
-  bottomAd.setAttribute("data-ad-client", appConfig.adsenseClient);
-  bottomAd.setAttribute("data-ad-slot", appConfig.bottomAdSlot);
+  if (hasTopSlot) {
+    topAd.setAttribute("data-ad-client", appConfig.adsenseClient);
+    topAd.setAttribute("data-ad-slot", appConfig.topAdSlot);
+  }
+
+  if (hasBottomSlot) {
+    bottomAd.setAttribute("data-ad-client", appConfig.adsenseClient);
+    bottomAd.setAttribute("data-ad-slot", appConfig.bottomAdSlot);
+  }
 
   try {
     await loadExternalScript(
@@ -170,13 +178,23 @@ async function initAdsense() {
       { async: true }
     );
 
-    (window.adsbygoogle = window.adsbygoogle || []).push({});
-    (window.adsbygoogle = window.adsbygoogle || []).push({});
-    topAdStrip.classList.add("active");
-    bottomAdStrip.classList.add("active");
+    if (hasTopSlot) {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      topAdStrip.classList.add("active");
+    }
+
+    if (hasBottomSlot) {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      bottomAdStrip.classList.add("active");
+    }
   } catch (_err) {
-    topAdStrip.classList.remove("active");
-    bottomAdStrip.classList.remove("active");
+    if (hasTopSlot) {
+      topAdStrip.classList.remove("active");
+    }
+
+    if (hasBottomSlot) {
+      bottomAdStrip.classList.remove("active");
+    }
   }
 }
 
