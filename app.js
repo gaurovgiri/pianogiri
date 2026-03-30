@@ -51,6 +51,23 @@ const octaveDownButton = document.getElementById("octaveDown");
 const octaveUpButton = document.getElementById("octaveUp");
 const velocityDownButton = document.getElementById("velocityDown");
 const velocityUpButton = document.getElementById("velocityUp");
+const topAdStrip = document.getElementById("topAdStrip");
+const bottomAdStrip = document.getElementById("bottomAdStrip");
+const topAd = document.getElementById("topAd");
+const bottomAd = document.getElementById("bottomAd");
+
+const appConfig = {
+  gaMeasurementId: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.gaMeasurementId) || "",
+  adsenseClient: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.adsenseClient) || "",
+  topAdSlot: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.topAdSlot) || "",
+  bottomAdSlot: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.bottomAdSlot) || "",
+};
+
+let analyticsReady = false;
+let hasSentPlayStart = false;
+let hasSentFirstNote = false;
+let hasSentSession30s = false;
+let notePlayCount = 0;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -72,6 +89,95 @@ function getMidiForKey(config) {
   const displayedRootC = (baseOctave + 1) * 12;
   const calibratedRootC = displayedRootC + DISPLAY_TO_SOUND_OCTAVE_OFFSET * 12;
   return clamp(calibratedRootC + config.semitone, MIN_MIDI, MAX_MIDI);
+}
+
+function loadExternalScript(src, { async = true } = {}) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = async;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function initAnalytics() {
+  if (!appConfig.gaMeasurementId) {
+    return;
+  }
+
+  try {
+    await loadExternalScript(`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(appConfig.gaMeasurementId)}`);
+
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function gtag() {
+      window.dataLayer.push(arguments);
+    };
+
+    window.gtag("js", new Date());
+    window.gtag("config", appConfig.gaMeasurementId, { send_page_view: true });
+    analyticsReady = true;
+  } catch (_err) {
+    analyticsReady = false;
+  }
+}
+
+function trackEvent(name, params = {}) {
+  if (!analyticsReady || typeof window.gtag !== "function") {
+    return;
+  }
+
+  window.gtag("event", name, {
+    app_name: "PianoGiri",
+    ...params,
+  });
+}
+
+function ensureSessionTimers() {
+  if (hasSentPlayStart) {
+    return;
+  }
+
+  hasSentPlayStart = true;
+  trackEvent("play_start", {
+    start_octave: baseOctave,
+    start_velocity: velocity,
+  });
+
+  window.setTimeout(() => {
+    if (!hasSentSession30s) {
+      hasSentSession30s = true;
+      trackEvent("session_30s", { note_count: notePlayCount });
+    }
+  }, 30000);
+}
+
+async function initAdsense() {
+  const hasAdsConfig = appConfig.adsenseClient && appConfig.topAdSlot && appConfig.bottomAdSlot;
+  if (!hasAdsConfig) {
+    return;
+  }
+
+  topAd.setAttribute("data-ad-client", appConfig.adsenseClient);
+  topAd.setAttribute("data-ad-slot", appConfig.topAdSlot);
+  bottomAd.setAttribute("data-ad-client", appConfig.adsenseClient);
+  bottomAd.setAttribute("data-ad-slot", appConfig.bottomAdSlot);
+
+  try {
+    await loadExternalScript(
+      `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(appConfig.adsenseClient)}`,
+      { async: true }
+    );
+
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+    topAdStrip.classList.add("active");
+    bottomAdStrip.classList.add("active");
+  } catch (_err) {
+    topAdStrip.classList.remove("active");
+    bottomAdStrip.classList.remove("active");
+  }
 }
 
 function updateLabels() {
@@ -226,6 +332,8 @@ function noteOn(code) {
     return;
   }
 
+  ensureSessionTimers();
+
   ACTIVE_KEYS.add(code);
   sustainedCodes.delete(code);
   setKeyVisual(code, true);
@@ -240,6 +348,25 @@ function noteOn(code) {
 
   pianoSampler.triggerAttack(noteName, undefined, velocityToGain(velocity));
   voicesByCode.set(code, noteName);
+
+  notePlayCount += 1;
+
+  if (!hasSentFirstNote) {
+    hasSentFirstNote = true;
+    trackEvent("first_note", {
+      note: noteName,
+      octave_display: baseOctave,
+      velocity,
+    });
+  }
+
+  if (notePlayCount % 24 === 0) {
+    trackEvent("notes_progress", {
+      note_count: notePlayCount,
+      octave_display: baseOctave,
+      velocity,
+    });
+  }
 }
 
 function releaseVoice(noteName) {
@@ -298,16 +425,19 @@ function panicAllNotes() {
 function changeOctave(delta) {
   baseOctave = clamp(baseOctave + delta, 1, 6);
   updateLabels();
+  trackEvent("octave_change", { octave_display: baseOctave });
 }
 
 function changeVelocity(delta) {
   velocity = clamp(velocity + delta, 20, 127);
   updateLabels();
+  trackEvent("velocity_change", { velocity });
 }
 
 function toggleSustain() {
   sustainOn = !sustainOn;
   updateLabels();
+  trackEvent("sustain_toggle", { sustain_on: sustainOn });
 
   if (!sustainOn) {
     releaseSustainedVoices();
@@ -406,6 +536,8 @@ buildKeyboard();
 bindUiControls();
 updateLabels();
 initAudio();
+initAnalytics();
+initAdsense();
 
 window.addEventListener("keydown", keydownHandler, { passive: false });
 window.addEventListener("keyup", keyupHandler);
