@@ -43,47 +43,6 @@ The displayed octave labels are calibrated so `C1` on the UI sounds as concert-s
 - Web Audio via Tone.js
 - Sample set: Salamander piano samples loaded from CDN
 
-## Run Locally
-
-Because the app loads scripts and audio assets, run it with a local server.
-
-### Option 1: Python
-
-```bash
-python3 -m http.server 8080
-```
-
-Then open:
-
-- http://localhost:8080
-
-### Option 2: VS Code Live Server
-
-- Open the project in VS Code
-- Start Live Server on `index.html`
-
-## Project Structure
-
-- `index.html`: App layout, title, config object, ad slots
-- `styles.css`: Visual design and responsive styles
-- `app.js`: Piano engine, input handling, sustain/octave/velocity logic, analytics and ads bootstrapping
-- `screenshot.png`: Project preview image
-
-## Ads and Analytics Setup
-
-Update `window.PIANOGIRI_CONFIG` inside `index.html`:
-
-```html
-<script>
-  window.PIANOGIRI_CONFIG = {
-    gaMeasurementId: "G-XXXXXXXXXX",
-    adsenseClient: "ca-pub-XXXXXXXXXXXXXXXX",
-    topAdSlot: "1234567890",
-    bottomAdSlot: "0987654321",
-  };
-</script>
-```
-
 ### Tracking Events (GA4)
 
 The app emits these events when GA4 is configured:
