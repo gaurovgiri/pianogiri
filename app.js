@@ -1,28 +1,30 @@
 const WHITE_KEYS = [
-  { code: "KeyA", label: "A", semitone: 0 },
-  { code: "KeyS", label: "S", semitone: 2 },
-  { code: "KeyD", label: "D", semitone: 4 },
-  { code: "KeyF", label: "F", semitone: 5 },
-  { code: "KeyG", label: "G", semitone: 7 },
-  { code: "KeyH", label: "H", semitone: 9 },
-  { code: "KeyJ", label: "J", semitone: 11 },
-  { code: "KeyK", label: "K", semitone: 12 },
-  { code: "KeyL", label: "L", semitone: 14 },
-  { code: "Semicolon", label: ";", semitone: 16 },
-  { code: "Quote", label: "'", semitone: 17 },
+  { code: "KeyA", label: "A", semitone: 0, note: "C" },
+  { code: "KeyS", label: "S", semitone: 2, note: "D" },
+  { code: "KeyD", label: "D", semitone: 4, note: "E" },
+  { code: "KeyF", label: "F", semitone: 5, note: "F" },
+  { code: "KeyG", label: "G", semitone: 7, note: "G" },
+  { code: "KeyH", label: "H", semitone: 9, note: "A" },
+  { code: "KeyJ", label: "J", semitone: 11, note: "B" },
+  { code: "KeyK", label: "K", semitone: 12, note: "C" },
+  { code: "KeyL", label: "L", semitone: 14, note: "D" },
+  { code: "Semicolon", label: ";", semitone: 16, note: "E" },
+  { code: "Quote", label: "'", semitone: 17, note: "F" },
 ];
 
 const BLACK_KEYS = [
-  { code: "KeyW", label: "W", semitone: 1, afterWhite: 0 },
-  { code: "KeyE", label: "E", semitone: 3, afterWhite: 1 },
-  { code: "KeyT", label: "T", semitone: 6, afterWhite: 3 },
-  { code: "KeyY", label: "Y", semitone: 8, afterWhite: 4 },
-  { code: "KeyU", label: "U", semitone: 10, afterWhite: 5 },
-  { code: "KeyO", label: "O", semitone: 13, afterWhite: 7 },
-  { code: "KeyP", label: "P", semitone: 15, afterWhite: 8 },
+  { code: "KeyW", label: "W", semitone: 1, afterWhite: 0, note: "C#" },
+  { code: "KeyE", label: "E", semitone: 3, afterWhite: 1, note: "D#" },
+  { code: "KeyT", label: "T", semitone: 6, afterWhite: 3, note: "F#" },
+  { code: "KeyY", label: "Y", semitone: 8, afterWhite: 4, note: "G#" },
+  { code: "KeyU", label: "U", semitone: 10, afterWhite: 5, note: "A#" },
+  { code: "KeyO", label: "O", semitone: 13, afterWhite: 7, note: "C#" },
+  { code: "KeyP", label: "P", semitone: 15, afterWhite: 8, note: "D#" },
 ];
 
-const KEY_CONFIG_BY_CODE = new Map([...WHITE_KEYS, ...BLACK_KEYS].map((k) => [k.code, k]));
+const SONG_MANIFEST_PATH = "./songs/index.json";
+
+const KEY_CONFIG_BY_CODE = new Map([...WHITE_KEYS, ...BLACK_KEYS].map((key) => [key.code, key]));
 
 const ACTIVE_KEYS = new Set();
 const voicesByCode = new Map();
@@ -37,11 +39,18 @@ let baseOctave = 2;
 let velocity = 98;
 let sustainOn = false;
 
+let songs = [];
+let filteredSongs = [];
+let selectedSong = null;
+let currentStep = 0;
+let lastExpectedCode = null;
+
 const DISPLAY_TO_SOUND_OCTAVE_OFFSET = 3;
 const MIN_MIDI = 21;
 const MAX_MIDI = 108;
 
 const keyElements = new Map();
+const songButtons = new Map();
 
 const keybed = document.getElementById("keybed");
 const sustainButton = document.getElementById("sustainButton");
@@ -51,26 +60,33 @@ const octaveDownButton = document.getElementById("octaveDown");
 const octaveUpButton = document.getElementById("octaveUp");
 const velocityDownButton = document.getElementById("velocityDown");
 const velocityUpButton = document.getElementById("velocityUp");
-const topAdStrip = document.getElementById("topAdStrip");
-const bottomAdStrip = document.getElementById("bottomAdStrip");
-const topAd = document.getElementById("topAd");
-const bottomAd = document.getElementById("bottomAd");
-
-const appConfig = {
-  gaMeasurementId: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.gaMeasurementId) || "",
-  adsenseClient: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.adsenseClient) || "",
-  topAdSlot: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.topAdSlot) || "",
-  bottomAdSlot: (window.PIANOGIRI_CONFIG && window.PIANOGIRI_CONFIG.bottomAdSlot) || "",
-};
-
-let analyticsReady = false;
-let hasSentPlayStart = false;
-let hasSentFirstNote = false;
-let hasSentSession30s = false;
-let notePlayCount = 0;
+const songList = document.getElementById("songList");
+const songSearchInput = document.getElementById("songSearchInput");
+const songSearchButton = document.getElementById("songSearchButton");
+const clearSongButton = document.getElementById("clearSong");
+const restartSongButton = document.getElementById("restartSong");
+const currentSongTitle = document.getElementById("currentSongTitle");
+const targetNote = document.getElementById("targetNote");
+const hintText = document.getElementById("hintText");
+const progressText = document.getElementById("progressText");
+const progressFill = document.getElementById("progressFill");
+const feedbackMessage = document.getElementById("feedbackMessage");
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function isTypingTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  const tagName = target.tagName;
+  return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
 }
 
 function noteNameForOctave(octave) {
@@ -91,117 +107,234 @@ function getMidiForKey(config) {
   return clamp(calibratedRootC + config.semitone, MIN_MIDI, MAX_MIDI);
 }
 
-function loadExternalScript(src, { async = true } = {}) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = async;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(script);
-  });
-}
-
-async function initAnalytics() {
-  if (!appConfig.gaMeasurementId) {
-    return;
-  }
-
-  try {
-    await loadExternalScript(`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(appConfig.gaMeasurementId)}`);
-
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = function gtag() {
-      window.dataLayer.push(arguments);
-    };
-
-    window.gtag("js", new Date());
-    window.gtag("config", appConfig.gaMeasurementId, { send_page_view: true });
-    analyticsReady = true;
-  } catch (_err) {
-    analyticsReady = false;
-  }
-}
-
-function trackEvent(name, params = {}) {
-  if (!analyticsReady || typeof window.gtag !== "function") {
-    return;
-  }
-
-  window.gtag("event", name, {
-    app_name: "PianoGiri",
-    ...params,
-  });
-}
-
-function ensureSessionTimers() {
-  if (hasSentPlayStart) {
-    return;
-  }
-
-  hasSentPlayStart = true;
-  trackEvent("play_start", {
-    start_octave: baseOctave,
-    start_velocity: velocity,
-  });
-
-  window.setTimeout(() => {
-    if (!hasSentSession30s) {
-      hasSentSession30s = true;
-      trackEvent("session_30s", { note_count: notePlayCount });
-    }
-  }, 30000);
-}
-
-async function initAdsense() {
-  const hasClient = Boolean(appConfig.adsenseClient);
-  const hasTopSlot = Boolean(appConfig.topAdSlot);
-  const hasBottomSlot = Boolean(appConfig.bottomAdSlot);
-
-  if (!hasClient || (!hasTopSlot && !hasBottomSlot)) {
-    return;
-  }
-
-  if (hasTopSlot) {
-    topAd.setAttribute("data-ad-client", appConfig.adsenseClient);
-    topAd.setAttribute("data-ad-slot", appConfig.topAdSlot);
-  }
-
-  if (hasBottomSlot) {
-    bottomAd.setAttribute("data-ad-client", appConfig.adsenseClient);
-    bottomAd.setAttribute("data-ad-slot", appConfig.bottomAdSlot);
-  }
-
-  try {
-    await loadExternalScript(
-      `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(appConfig.adsenseClient)}`,
-      { async: true }
-    );
-
-    if (hasTopSlot) {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-      topAdStrip.classList.add("active");
-    }
-
-    if (hasBottomSlot) {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-      bottomAdStrip.classList.add("active");
-    }
-  } catch (_err) {
-    if (hasTopSlot) {
-      topAdStrip.classList.remove("active");
-    }
-
-    if (hasBottomSlot) {
-      bottomAdStrip.classList.remove("active");
-    }
-  }
-}
-
 function updateLabels() {
   octaveLabel.textContent = noteNameForOctave(baseOctave);
   velocityLabel.textContent = String(velocity);
   sustainButton.setAttribute("aria-pressed", String(sustainOn));
+}
+
+function flashKey(code, className) {
+  const el = keyElements.get(code);
+  if (!el) {
+    return;
+  }
+
+  el.classList.remove(className);
+  // Restarting animation allows each input to pulse even for repeated notes.
+  void el.offsetWidth;
+  el.classList.add(className);
+
+  window.setTimeout(() => {
+    el.classList.remove(className);
+  }, 260);
+}
+
+function clearExpectedHighlight() {
+  if (!lastExpectedCode) {
+    return;
+  }
+
+  const previous = keyElements.get(lastExpectedCode);
+  if (previous) {
+    previous.classList.remove("expected");
+  }
+
+  lastExpectedCode = null;
+}
+
+function highlightExpected(code) {
+  clearExpectedHighlight();
+  if (!code) {
+    return;
+  }
+
+  const el = keyElements.get(code);
+  if (el) {
+    el.classList.add("expected");
+    lastExpectedCode = code;
+  }
+}
+
+function setFeedback(text, tone) {
+  feedbackMessage.textContent = text;
+  feedbackMessage.classList.remove("neutral", "correct", "wrong", "complete");
+  feedbackMessage.classList.add(tone);
+}
+
+function noteDisplayByCode(code) {
+  const key = KEY_CONFIG_BY_CODE.get(code);
+  if (!key) {
+    return "-";
+  }
+
+  return `${key.note} (${key.label})`;
+}
+
+function expectedCode() {
+  if (!selectedSong || currentStep >= selectedSong.sequence.length) {
+    return null;
+  }
+
+  return selectedSong.sequence[currentStep];
+}
+
+function updateProgress() {
+  if (!selectedSong) {
+    progressText.textContent = "0 / 0";
+    progressFill.style.width = "0%";
+    return;
+  }
+
+  const total = selectedSong.sequence.length;
+  progressText.textContent = `${currentStep} / ${total}`;
+  progressFill.style.width = `${(currentStep / total) * 100}%`;
+}
+
+function updateLessonUI() {
+  restartSongButton.disabled = !selectedSong;
+  clearSongButton.disabled = !selectedSong;
+
+  if (!selectedSong) {
+    currentSongTitle.textContent = "Select a song to begin";
+    targetNote.textContent = "-";
+    hintText.textContent = "Choose a song to see guided notes.";
+    setFeedback("Play the highlighted note to continue.", "neutral");
+    clearExpectedHighlight();
+    updateProgress();
+    return;
+  }
+
+  currentSongTitle.textContent = selectedSong.title;
+
+  const nextCode = expectedCode();
+  if (nextCode) {
+    targetNote.textContent = noteDisplayByCode(nextCode);
+    hintText.textContent = "Match this note on your keyboard or click the piano key.";
+    highlightExpected(nextCode);
+  } else {
+    targetNote.textContent = "Done";
+    hintText.textContent = "Great job. Restart or pick another song.";
+    clearExpectedHighlight();
+    setFeedback("Song complete. Nice rhythm and focus.", "complete");
+  }
+
+  updateProgress();
+}
+
+function renderSongList() {
+  songButtons.clear();
+  songList.innerHTML = "";
+
+  if (filteredSongs.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "song-empty";
+    empty.textContent = "No songs found. Try another search.";
+    songList.appendChild(empty);
+    return;
+  }
+
+  filteredSongs.forEach((song) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "song-item";
+    button.setAttribute("role", "option");
+    button.textContent = song.title;
+
+    const detail = document.createElement("small");
+    detail.textContent = `${song.difficulty} · ${song.sequence.length} notes`;
+    button.appendChild(detail);
+
+    button.addEventListener("click", () => {
+      selectSong(song.id);
+    });
+
+    songButtons.set(song.id, button);
+    songList.appendChild(button);
+  });
+}
+
+function selectSong(songId) {
+  if (selectedSong && selectedSong.id === songId) {
+    deselectSong();
+    return;
+  }
+
+  selectedSong = songs.find((song) => song.id === songId) || null;
+  currentStep = 0;
+
+  songButtons.forEach((button, id) => {
+    button.classList.toggle("active", id === songId);
+  });
+
+  setFeedback("Song loaded. Hit the target note.", "neutral");
+  updateLessonUI();
+}
+
+function deselectSong() {
+  selectedSong = null;
+  currentStep = 0;
+  clearExpectedHighlight();
+
+  songButtons.forEach((button) => {
+    button.classList.remove("active");
+  });
+
+  updateLessonUI();
+  setFeedback("Free play mode. Piano guidance is paused.", "neutral");
+}
+
+async function loadSongs() {
+  const manifestResponse = await fetch(SONG_MANIFEST_PATH);
+  if (!manifestResponse.ok) {
+    throw new Error("Could not load song manifest.");
+  }
+
+  const filenames = await manifestResponse.json();
+  if (!Array.isArray(filenames)) {
+    throw new Error("Song manifest format is invalid.");
+  }
+
+  const loadedSongs = await Promise.all(
+    filenames.map(async (filename) => {
+      const songResponse = await fetch(`./songs/${filename}`);
+      if (!songResponse.ok) {
+        throw new Error(`Could not load song file: ${filename}`);
+      }
+
+      const song = await songResponse.json();
+      if (!song || typeof song.id !== "string" || !Array.isArray(song.sequence)) {
+        throw new Error(`Invalid song format: ${filename}`);
+      }
+
+      return song;
+    })
+  );
+
+  songs = loadedSongs;
+  filteredSongs = [...songs];
+}
+
+function applySongSearch() {
+  const query = songSearchInput.value.trim().toLowerCase();
+  filteredSongs = songs.filter((song) => song.title.toLowerCase().includes(query));
+  renderSongList();
+
+  if (selectedSong && !filteredSongs.some((song) => song.id === selectedSong.id)) {
+    selectedSong = null;
+    currentStep = 0;
+    updateLessonUI();
+    setFeedback("Selected song is hidden by search. Pick another result.", "neutral");
+  }
+}
+
+function restartSong() {
+  if (!selectedSong) {
+    return;
+  }
+
+  currentStep = 0;
+  setFeedback("Restarted. Begin with the first note.", "neutral");
+  updateLessonUI();
 }
 
 function buildKeyboard() {
@@ -344,13 +477,40 @@ function getConfigByCode(code) {
   return KEY_CONFIG_BY_CODE.get(code);
 }
 
+function evaluateGuidedInput(code) {
+  if (!selectedSong) {
+    return;
+  }
+
+  const wantedCode = expectedCode();
+  if (!wantedCode) {
+    setFeedback("Song complete. Pick another song to continue learning.", "complete");
+    return;
+  }
+
+  if (code === wantedCode) {
+    currentStep += 1;
+    flashKey(code, "correct-flash");
+
+    if (currentStep >= selectedSong.sequence.length) {
+      setFeedback("Perfect finish. You played every note in order.", "complete");
+    } else {
+      setFeedback(`Great. Next note is ${noteDisplayByCode(expectedCode())}.`, "correct");
+    }
+
+    updateLessonUI();
+    return;
+  }
+
+  flashKey(code, "wrong-flash");
+  setFeedback(`Not this one. Try ${noteDisplayByCode(wantedCode)}.`, "wrong");
+}
+
 function noteOn(code) {
   const config = getConfigByCode(code);
   if (!config || ACTIVE_KEYS.has(code) || !toneReady || !pianoSampler) {
     return;
   }
-
-  ensureSessionTimers();
 
   ACTIVE_KEYS.add(code);
   sustainedCodes.delete(code);
@@ -367,24 +527,7 @@ function noteOn(code) {
   pianoSampler.triggerAttack(noteName, undefined, velocityToGain(velocity));
   voicesByCode.set(code, noteName);
 
-  notePlayCount += 1;
-
-  if (!hasSentFirstNote) {
-    hasSentFirstNote = true;
-    trackEvent("first_note", {
-      note: noteName,
-      octave_display: baseOctave,
-      velocity,
-    });
-  }
-
-  if (notePlayCount % 24 === 0) {
-    trackEvent("notes_progress", {
-      note_count: notePlayCount,
-      octave_display: baseOctave,
-      velocity,
-    });
-  }
+  evaluateGuidedInput(code);
 }
 
 function releaseVoice(noteName) {
@@ -443,19 +586,16 @@ function panicAllNotes() {
 function changeOctave(delta) {
   baseOctave = clamp(baseOctave + delta, 1, 6);
   updateLabels();
-  trackEvent("octave_change", { octave_display: baseOctave });
 }
 
 function changeVelocity(delta) {
   velocity = clamp(velocity + delta, 20, 127);
   updateLabels();
-  trackEvent("velocity_change", { velocity });
 }
 
 function toggleSustain() {
   sustainOn = !sustainOn;
   updateLabels();
-  trackEvent("sustain_toggle", { sustain_on: sustainOn });
 
   if (!sustainOn) {
     releaseSustainedVoices();
@@ -463,6 +603,10 @@ function toggleSustain() {
 }
 
 function keydownHandler(event) {
+  if (isTypingTarget(event.target)) {
+    return;
+  }
+
   if (event.repeat) {
     return;
   }
@@ -503,9 +647,14 @@ function keydownHandler(event) {
 }
 
 function keyupHandler(event) {
+  if (isTypingTarget(event.target)) {
+    return;
+  }
+
   if (!keyElements.has(event.code)) {
     return;
   }
+
   noteOff(event.code);
 }
 
@@ -548,14 +697,50 @@ function bindUiControls() {
   velocityUpButton.addEventListener("click", () => {
     changeVelocity(2);
   });
+
+  restartSongButton.addEventListener("click", () => {
+    restartSong();
+  });
+
+  clearSongButton.addEventListener("click", () => {
+    deselectSong();
+  });
+
+  songSearchButton.addEventListener("click", () => {
+    applySongSearch();
+  });
+
+  songSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      applySongSearch();
+    }
+  });
+
+  songSearchInput.addEventListener("input", () => {
+    if (songSearchInput.value.trim() === "") {
+      applySongSearch();
+    }
+  });
 }
 
-buildKeyboard();
-bindUiControls();
-updateLabels();
-initAudio();
-initAnalytics();
-initAdsense();
+async function startApp() {
+  buildKeyboard();
+  bindUiControls();
+  updateLabels();
+  updateLessonUI();
+  initAudio();
+
+  try {
+    await loadSongs();
+    renderSongList();
+  } catch (_error) {
+    filteredSongs = [];
+    renderSongList();
+    setFeedback("Could not load songs. Please check song files.", "wrong");
+  }
+}
+
+startApp();
 
 window.addEventListener("keydown", keydownHandler, { passive: false });
 window.addEventListener("keyup", keyupHandler);

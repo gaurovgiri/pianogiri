@@ -1,0 +1,6 @@
+{
+  "id": "jingle",
+  "title": "Jingle Bells Hook",
+  "difficulty": "Beginner",
+  "sequence": ["KeyD", "KeyD", "KeyD", "KeyD", "KeyD", "KeyD", "KeyD", "KeyG", "KeyA", "KeyS", "KeyD"]
+}

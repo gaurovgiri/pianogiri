@@ -1,19 +1,20 @@
 # PianoGiri
 
-A fast, browser-based virtual piano with keyboard controls, sustain, velocity, octave switching, and realistic sampled grand-piano sound.
+A reactive, browser-based piano learning website where users choose a song and play guided notes step by step.
 
 ![PianoGiri Screenshot](./screenshot.png)
 
 ## Features
 
-- Real-time play from your computer keyboard
+- Song list with selectable lessons
+- Search button to quickly filter songs by title
+- Guided next-note coaching for each song
+- Correct and wrong-note reactive feedback
+- Progress tracking with live completion bar
+- Real-time play from your computer keyboard and mouse/touch
 - Grand-piano sampled sound engine (Tone.js + Salamander samples)
-- Sustain toggle (Tab)
-- Octave control (Z/X)
-- Velocity control (C/V)
-- Responsive UI for desktop and mobile
-- Ad-ready layout (top and bottom slots)
-- GA4 event tracking hooks for growth and conversion analysis
+- Sustain toggle (Tab), octave control (Z/X), velocity control (C/V)
+- Responsive layout for desktop and mobile
 
 ## Keyboard Mapping
 
@@ -37,25 +38,42 @@ A fast, browser-based virtual piano with keyboard controls, sustain, velocity, o
 
 The displayed octave labels are calibrated so `C1` on the UI sounds as concert-style `C4`, matching your intended reference.
 
+## Guided Learning Flow
+
+1. Pick any song from the "Available Songs" list.
+2. Follow the "Next Note" prompt.
+3. Play matching keys in order to advance.
+4. Complete the sequence to finish the song.
+
+## Song Files
+
+Songs are loaded from the `songs` folder.
+
+- `songs/index.json` contains the list of song filenames.
+- Each song is stored in its own JSON file, for example `songs/twinkle-intro.json`.
+
+Song JSON format:
+
+```json
+{
+	"id": "twinkle",
+	"title": "Twinkle Intro",
+	"difficulty": "Beginner",
+	"sequence": ["KeyA", "KeyA", "KeyG"]
+}
+```
+
+To add a new song:
+
+1. Create a new file in `songs/` with the same JSON shape.
+2. Add that filename to `songs/index.json`.
+
 ## Tech Stack
 
 - HTML, CSS, JavaScript
 - Web Audio via Tone.js
 - Sample set: Salamander piano samples loaded from CDN
 
-### Tracking Events (GA4)
-
-The app emits these events when GA4 is configured:
-
-- `play_start`
-- `first_note`
-- `session_30s`
-- `notes_progress`
-- `sustain_toggle`
-- `octave_change`
-- `velocity_change`
-
 ## Notes
 
 - Internet connection is required for CDN-loaded Tone.js and piano samples.
-- If ad/analytics IDs are empty, the app still works normally (safe no-op behavior).

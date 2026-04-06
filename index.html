@@ -3,72 +3,116 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PianoGiri</title>
+    <title>PianoGiri | Learn Songs By Playing</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=JetBrains+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <script>
-      window.PIANOGIRI_CONFIG = {
-        gaMeasurementId: "",
-        adsenseClient: "ca-pub-3002721976030617",
-        topAdSlot: "5626616449",
-        bottomAdSlot: "8061208099",
-      };
-    </script>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="app">
-      <h1 class="app-title">PianoGiri</h1>
-      <section class="ad-strip" id="topAdStrip" aria-label="Top advertisement">
-        <ins class="adsbygoogle" id="topAd" data-ad-format="auto" data-full-width-responsive="true"></ins>
-      </section>
+      <section class="hero-card" aria-label="Interactive piano lesson">
+        <p class="eyebrow">Interactive Song Coach</p>
+        <h1 class="app-title">PianoGiri</h1>
+        <p class="hero-copy">
+          Pick a song, follow the highlighted notes, and train your fingers with real-time feedback.
+        </p>
 
-      <section class="piano-panel" aria-label="Computer keyboard piano">
-        <div class="top-bar">
-          <button id="sustainButton" class="sustain" type="button" aria-pressed="false">
-            <span class="small">sustain</span>
-            <span class="big">tab</span>
-          </button>
+        <div class="dashboard-grid">
+          <aside class="song-list-panel" aria-label="Available songs">
+            <h2>Available Songs</h2>
+            <div class="song-search" role="search" aria-label="Search songs">
+              <input id="songSearchInput" type="search" placeholder="Search song name" aria-label="Search by song name" />
+              <button id="songSearchButton" type="button">Search</button>
+            </div>
+            <div id="songList" class="song-list" role="listbox" aria-label="Song choices"></div>
+          </aside>
 
-          <div class="keybed" id="keybed" role="group" aria-label="Piano keyboard"></div>
+          <section class="lesson-panel" aria-live="polite" aria-label="Current lesson">
+            <div class="lesson-header">
+              <div>
+                <p class="label">Current Song</p>
+                <h2 id="currentSongTitle">Select a song to begin</h2>
+              </div>
+              <div class="lesson-actions">
+                <button id="clearSong" class="ghost-btn" type="button">Free Play</button>
+                <button id="restartSong" class="ghost-btn" type="button">Restart</button>
+              </div>
+            </div>
+
+            <div class="coach-cards">
+              <article class="coach-card">
+                <p class="label">Next Note</p>
+                <p id="targetNote" class="target-note">-</p>
+              </article>
+
+              <article class="coach-card">
+                <p class="label">Hint</p>
+                <p id="hintText" class="hint-text">Choose a song to see guided notes.</p>
+              </article>
+
+              <article class="coach-card">
+                <p class="label">Progress</p>
+                <p id="progressText" class="progress-text">0 / 0</p>
+                <div class="progress-track" aria-hidden="true">
+                  <div id="progressFill" class="progress-fill"></div>
+                </div>
+              </article>
+            </div>
+
+            <p id="feedbackMessage" class="feedback neutral">Play the highlighted note to continue.</p>
+          </section>
         </div>
 
-        <div class="status-row">
-          <div class="status-item">Octave: <strong id="octaveLabel">C2</strong></div>
-          <div class="control-group" role="group" aria-label="Octave controls">
-            <button id="octaveDown" class="ctrl octave" type="button">
-              <span class="mark">-</span>
-              <span class="letter">Z</span>
+        <section class="piano-panel" aria-label="Computer keyboard piano">
+          <div class="top-bar">
+            <button id="sustainButton" class="sustain" type="button" aria-pressed="false">
+              <span class="small">sustain</span>
+              <span class="big">tab</span>
             </button>
-            <button id="octaveUp" class="ctrl octave" type="button">
-              <span class="mark">+</span>
-              <span class="letter">X</span>
-            </button>
+
+            <div class="keybed" id="keybed" role="group" aria-label="Piano keyboard"></div>
           </div>
 
-          <div class="status-item">Velocity: <strong id="velocityLabel">98</strong></div>
-          <div class="control-group" role="group" aria-label="Velocity controls">
-            <button id="velocityDown" class="ctrl velocity" type="button">
-              <span class="mark">-</span>
-              <span class="letter">C</span>
-            </button>
-            <button id="velocityUp" class="ctrl velocity" type="button">
-              <span class="mark">+</span>
-              <span class="letter">V</span>
-            </button>
+          <div class="status-row">
+            <div class="status-item">Octave: <strong id="octaveLabel">C2</strong></div>
+            <div class="control-group" role="group" aria-label="Octave controls">
+              <button id="octaveDown" class="ctrl octave" type="button">
+                <span class="mark">-</span>
+                <span class="letter">Z</span>
+              </button>
+              <button id="octaveUp" class="ctrl octave" type="button">
+                <span class="mark">+</span>
+                <span class="letter">X</span>
+              </button>
+            </div>
+
+            <div class="status-item">Velocity: <strong id="velocityLabel">98</strong></div>
+            <div class="control-group" role="group" aria-label="Velocity controls">
+              <button id="velocityDown" class="ctrl velocity" type="button">
+                <span class="mark">-</span>
+                <span class="letter">C</span>
+              </button>
+              <button id="velocityUp" class="ctrl velocity" type="button">
+                <span class="mark">+</span>
+                <span class="letter">V</span>
+              </button>
+            </div>
           </div>
+
+          <p class="hint">Use A S D F G H J K L ; ' and W E T Y U O P. Match the next note shown above.</p>
+        </section>
+
+        <div class="note-legend" aria-label="Guide legend">
+          <span><i class="dot expected"></i> Expected note</span>
+          <span><i class="dot correct"></i> Correct hit</span>
+          <span><i class="dot wrong"></i> Wrong hit</span>
+          <span><i class="dot complete"></i> Song complete</span>
         </div>
-
-        <p class="hint">Press A S D F G H J K L ; ' with black keys on W E T Y U O P. Use TAB for sustain.</p>
-      </section>
-
-      <section class="ad-strip" id="bottomAdStrip" aria-label="Bottom advertisement">
-        <ins class="adsbygoogle" id="bottomAd" data-ad-format="auto" data-full-width-responsive="true"></ins>
       </section>
     </main>
 
